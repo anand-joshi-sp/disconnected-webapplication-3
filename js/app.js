@@ -527,32 +527,7 @@
           linkNav("medications", "Medications", active),
           linkNav("medinventory", "Med Inventory", active),
           linkNav("reports", "Reports", active),
-          el("div", { className: "nav-drop" + (state.openMenu === "actions" ? " open" : ""), id: "nav-actions" }, [
-            el("a", {
-              href: "#/actions",
-              className: active === "actions" ? "active" : "",
-              text: "Actions",
-              onClick: function (ev) { toggle("actions", ev); }
-            }),
-            el("div", { className: "nav-menu" }, [
-              menuItem("Devices", function () { navigate("medications"); }),
-              menuItem("Groups", function () { navigate("operations"); }),
-              menuItem("Inventory", function () { navigate("medinventory"); }),
-              menuItem("Reports", function () { navigate("reports"); }),
-              el("div", { className: "mi has-sub open-sub" }, [
-                document.createTextNode("Users"),
-                el("div", { className: "nav-flyout", id: "actions-users-flyout" }, [
-                  menuItem("User Accounts", function () { navigate("users"); }, "menu-user-accounts"),
-                  menuItem("Add User", function () {
-                    state.userDraft = emptyUserDraft();
-                    navigate("users", "new");
-                  }, "action-create-user"),
-                  menuItem("User Roles", function () { navigate("roles"); }, "menu-user-roles"),
-                  menuItem("User Types", function () { navigate("roles"); })
-                ])
-              ])
-            ])
-          ]),
+          linkNav("actions", "Actions", active),
           el("div", { className: "nav-drop" + (state.openMenu === "settings" ? " open" : ""), id: "nav-settings" }, [
             el("a", {
               href: "#/settings",
@@ -561,12 +536,27 @@
               onClick: function (ev) { toggle("settings", ev); }
             }),
             el("div", { className: "nav-menu" }, [
-              menuItem("User Accounts", function () { navigate("users"); }),
-              menuItem("User Roles", function () { navigate("roles"); }),
-              menuItem("Add Role", function () {
-                state.roleDraft = emptyRoleDraft();
-                navigate("roles", "new");
-              })
+              menuItem("Clinics", function () { navigate("operations"); }),
+              menuItem("Devices", function () { navigate("medications"); }),
+              menuItem("Dispensing", function () { navigate("medications"); }),
+              menuItem("Inventory", function () { navigate("medinventory"); }),
+              menuItem("Kit Components", function () { navigate("medinventory"); }),
+              menuItem("Med Storage", function () { navigate("medinventory"); }),
+              menuItem("Pharmacy", function () { navigate("medications"); }),
+              menuItem("Reports", function () { navigate("reports"); }),
+              el("div", { className: "mi has-sub open-sub" }, [
+                document.createTextNode("Users"),
+                el("div", { className: "nav-flyout", id: "settings-users-flyout" }, [
+                  menuItem("Create User", function () {
+                    state.userDraft = emptyUserDraft();
+                    navigate("users", "new");
+                  }, "action-create-user"),
+                  menuItem("Security Groups", function () { navigate("roles"); }),
+                  menuItem("User Accounts", function () { navigate("users"); }, "menu-user-accounts"),
+                  menuItem("User Roles", function () { navigate("roles"); }, "menu-user-roles"),
+                  menuItem("User Types", function () { navigate("roles"); })
+                ])
+              ])
             ])
           ]),
           linkNav("operations", "Operations", active)
