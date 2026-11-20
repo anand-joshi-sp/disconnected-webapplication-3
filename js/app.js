@@ -28,7 +28,8 @@
     session: null,
     route: { name: "login", id: null },
     toast: null,
-    actionsOpen: false,
+    openMenu: null,
+    selectedUserId: null,
     userDraft: null,
     roleDraft: null
   };
@@ -378,7 +379,9 @@
         else if (k.startsWith("on") && typeof props[k] === "function") node.addEventListener(k.slice(2).toLowerCase(), props[k]);
         else if (k === "hidden") {
           if (props[k]) node.setAttribute("hidden", "hidden");
-        } else node.setAttribute(k, props[k]);
+        } else if (k === "checked" || k === "selected") {
+          if (props[k]) node.setAttribute(k, k);
+        } else if (props[k] != null && props[k] !== false) node.setAttribute(k, props[k]);
       });
     }
     (children || []).forEach(function (c) {
@@ -434,36 +437,97 @@
     ]));
   }
 
+  function menuItem(label, onClick, id) {
+    return el("div", {
+      className: "mi",
+      id: id || undefined,
+      onClick: function (ev) {
+        ev.stopPropagation();
+        state.openMenu = null;
+        onClick();
+      }
+    }, [label]);
+  }
+
   function shellHeader(active) {
-    var sess = state.session || {};
+    function toggle(name, ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      state.openMenu = state.openMenu === name ? null : name;
+      render();
+    }
     return el("div", { id: "app-shell" }, [
       el("header", { className: "pyxis-top" }, [
         el("div", { className: "brand", text: PRODUCT_TITLE }),
         el("nav", {}, [
           linkNav("home", "Home", active),
-          linkNav("preferences", "Preferences", active),
-          linkNav("reports", "Audit Reports", active),
-          linkNav("actions", "Actions", active),
-          linkNav("users", "Users", active),
-          linkNav("roles", "Roles", active),
-          linkNav("settings", "Settings", active),
           linkNav("medications", "Medications", active),
           linkNav("medinventory", "Med Inventory", active),
+          linkNav("reports", "Reports", active),
+          el("div", { className: "nav-drop" + (state.openMenu === "actions" ? " open" : ""), id: "nav-actions" }, [
+            el("a", {
+              href: "#/actions",
+              className: active === "actions" ? "active" : "",
+              text: "Actions",
+              onClick: function (ev) { toggle("actions", ev); }
+            }),
+            el("div", { className: "nav-menu" }, [
+              menuItem("Devices", function () { navigate("medications"); }),
+              menuItem("Groups", function () { navigate("operations"); }),
+              menuItem("Inventory", function () { navigate("medinventory"); }),
+              menuItem("Reports", function () { navigate("reports"); }),
+              el("div", { className: "mi has-sub" }, [
+                document.createTextNode("Users"),
+                el("div", { className: "nav-flyout" }, [
+                  menuItem("User Accounts", function () { navigate("users"); }, "menu-user-accounts"),
+                  menuItem("Add User", function () {
+                    state.userDraft = emptyUserDraft();
+                    navigate("users", "new");
+                  }, "action-create-user"),
+                  menuItem("User Roles", function () { navigate("roles"); }, "menu-user-roles"),
+                  menuItem("User Types", function () { navigate("roles"); })
+                ])
+              ])
+            ])
+          ]),
+          el("div", { className: "nav-drop" + (state.openMenu === "settings" ? " open" : ""), id: "nav-settings" }, [
+            el("a", {
+              href: "#/settings",
+              className: active === "settings" ? "active" : "",
+              text: "Settings",
+              onClick: function (ev) { toggle("settings", ev); }
+            }),
+            el("div", { className: "nav-menu" }, [
+              menuItem("User Accounts", function () { navigate("users"); }),
+              menuItem("User Roles", function () { navigate("roles"); }),
+              menuItem("Add Role", function () {
+                state.roleDraft = emptyRoleDraft();
+                navigate("roles", "new");
+              })
+            ])
+          ]),
           linkNav("operations", "Operations", active)
         ]),
         el("div", { className: "session" }, [
-          document.createTextNode("Mountain Standard Time | "),
-          el("span", { text: "ControlCenter... | " + (sess.display || sess.username || "User") + " | " }),
-          el("a", {
-            href: "#/login",
-            text: "Sign Out",
-            onClick: function (ev) {
-              ev.preventDefault();
-              state.session = null;
-              saveSession(null);
-              navigate("login");
-            }
-          })
+          el("div", { className: "session-links" }, [
+            document.createTextNode("ControlCenter...  "),
+            el("a", { href: "#/home", text: "Help", onClick: function (ev) { ev.preventDefault(); state.openMenu = null; navigate("home"); } }),
+            document.createTextNode(" | "),
+            el("a", { href: "#/home", text: "About", onClick: function (ev) { ev.preventDefault(); state.openMenu = null; navigate("home"); } }),
+            document.createTextNode(" | "),
+            el("a", {
+              href: "#/login",
+              text: "Sign Out",
+              onClick: function (ev) {
+                ev.preventDefault();
+                state.session = null;
+                state.openMenu = null;
+                saveSession(null);
+                navigate("login");
+              }
+            })
+          ]),
+          el("div", { className: "session-tz", text: "Mountain Standard Time" })
         ])
       ])
     ]);
@@ -477,124 +541,35 @@
       text: label,
       onClick: function (ev) {
         ev.preventDefault();
-        state.actionsOpen = false;
+        state.openMenu = null;
         navigate(name);
       }
     });
   }
 
-  function launchButton(route, label, id) {
-    return el("button", {
-      className: "btn launch-btn",
-      id: id || undefined,
-      type: "button",
-      onClick: function () { navigate(route); }
-    }, [label]);
-  }
-
-  function renderFixtureHub(sectionTitle) {
-    var count = (state.db.users || []).length;
-    return el("div", {}, [
-      el("div", { className: "welcome-panel" }, [
-        el("h2", { text: sectionTitle }),
-        el("p", {
-          text: "This module is not fully simulated in the disconnected fixture. Use the options below to manage accounts and roles."
-        })
-      ]),
-      el("div", { className: "fixture-launchpad" }, [
-        launchButton("users", "Users — " + count + " accounts", "hub-users"),
-        launchButton("roles", "Roles — area metadata per User Type", "hub-roles"),
-        launchButton("home", "Home — Actions menu (Create User / Role)", "hub-actions")
-      ])
-    ]);
-  }
-
-  function teamRail() {
-    var items = ONLINE_RAIL.map(function (p) {
-      return el("div", {}, [
-        el("div", { className: "avatar", title: p.label, text: p.initials }),
-        el("div", { className: "avatar-name", text: p.label })
-      ]);
-    });
-    return el("aside", { className: "team-rail", "aria-label": "Team" }, [
-      el("div", { className: "rail-title", text: "Online (" + ONLINE_RAIL.length + ")" })
-    ].concat(items));
-  }
-
-  function wrapMain(shell, subhead, content) {
+  function wrapMain(shell, subhead, content, home) {
     var workspace = el("div", { className: "workspace" });
-    workspace.appendChild(subhead);
-    var mc = el("div", { id: "main-content" });
+    if (subhead) workspace.appendChild(subhead);
+    var mc = el("div", { id: "main-content", className: home ? "home-main" : "" });
     mc.appendChild(content);
     workspace.appendChild(mc);
-    var body = el("div", { className: "app-body" }, [workspace, teamRail()]);
-    shell.appendChild(el("div", { className: "nav-strip" }));
-    shell.appendChild(body);
+    shell.appendChild(workspace);
     return shell;
   }
 
   function renderHome() {
-    var content = el("div", {}, [
-      el("p", { className: "page-title", text: "Welcome to " + PRODUCT_TITLE }),
-      el("div", { className: "welcome-panel" }, [
-        el("h2", { text: "Welcome to " + PRODUCT_TITLE + " where you can access the following features to:" }),
-        el("ul", {}, [
-          el("li", { text: "Workforce — User and account management." }),
-          el("li", { text: "Access — Facility and assigned-area controls." }),
-          el("li", { text: "Actions — Create and update records." }),
-          el("li", { text: "Compliance — Audit-oriented views (simulated)." }),
-          el("li", { text: "Governance — Roles and entitlements." }),
-          el("li", { text: "Dashboard — Summary landing (this page)." })
-        ]),
-        el("div", { className: "welcome-hint", text: "Send an action item from the menu below to proceed." })
+    return el("div", { className: "welcome-panel" }, [
+      el("p", { className: "welcome-lead", text: "Welcome to " + PRODUCT_TITLE + " where you can access the following features to:" }),
+      el("ul", {}, [
+        el("li", { text: "Medications — Pharmacy and facility formulary items, facility item approval, stock, expiration, and related tasks." }),
+        el("li", { text: "Med Inventory — View or request medication, dispense or receive items, and track inventory." }),
+        el("li", { text: "Reports — Standard and custom reports." }),
+        el("li", { text: "Actions — Change a user password and other user-management tasks." }),
+        el("li", { text: "Settings — User list, support, and configuration." }),
+        el("li", { text: "Database — Software and firmware update management and device monitoring." })
       ]),
-      el("div", { className: "fixture-launchpad home-launchpad" }, [
-        launchButton("users", "Open Users (Accounts)"),
-        launchButton("roles", "Open Roles"),
-        launchButton("settings", "Open Settings")
-      ]),
-      el("div", { className: "actions-bar" }, [
-        el("button", {
-          className: "btn",
-          id: "btn-actions",
-          type: "button",
-          onClick: function () {
-            state.actionsOpen = !state.actionsOpen;
-            render();
-          }
-        }, ["Actions"]),
-        el("div", { className: "actions-menu" + (state.actionsOpen ? " open" : "") }, [
-          el("div", { className: "item", text: "Create" }),
-          el("div", { className: "sub" }, [
-            el("div", {
-              className: "item",
-              id: "action-create-user",
-              onClick: function () {
-                state.userDraft = emptyUserDraft();
-                state.actionsOpen = false;
-                navigate("users", "new");
-              }
-            }, ["Create User"]),
-            el("div", {
-              className: "item",
-              id: "action-create-role",
-              onClick: function () {
-                state.userDraft = null;
-                navigate("roles", "new");
-              }
-            }, ["Create Role"]),
-            el("div", { className: "item", text: "Create Account" }),
-            el("div", { className: "item", text: "Create Policy" }),
-            el("div", { className: "item", text: "Create Application" }),
-            el("div", { className: "item", text: "Create Bundle" })
-          ]),
-          el("div", { className: "item", text: "Update" }),
-          el("div", { className: "item", text: "Delete" })
-        ])
-      ]),
-      el("p", { className: "actions-footnote", text: "Send an option from the list below" })
+      el("div", { className: "welcome-hint", text: "Select an option from the menu below to proceed." })
     ]);
-    return content;
   }
 
   function renderUsersList() {
@@ -618,21 +593,27 @@
     var tbody = el("tbody", {});
     pageUsers.forEach(function (u) {
       var fac = state.db.facilities.find(function (f) { return f.id === u.facilityId; });
-      tbody.appendChild(el("tr", {}, [
-        el("td", {}, [el("input", { type: "checkbox" })]),
+      tbody.appendChild(el("tr", { className: state.selectedUserId === u.id ? "selected" : "" }, [
+        el("td", {}, [el("input", {
+          type: "checkbox",
+          checked: state.selectedUserId === u.id,
+          onChange: function () { state.selectedUserId = u.id; render(); }
+        })]),
         el("td", {}, [
           el("a", {
             href: "#/users/" + encodeURIComponent(u.id),
-            text: displayName(u),
-            onClick: function () { navigate("users", u.id); }
+            text: u.userId,
+            onClick: function (ev) { ev.preventDefault(); navigate("users", u.id); }
           })
         ]),
+        el("td", { text: u.lastName || "" }),
+        el("td", { text: u.firstName || "" }),
         el("td", { text: u.jobTitle || "" }),
         el("td", { text: u.employee || "Yes" }),
         el("td", { text: u.location || "" }),
         el("td", { text: u.startDate || "" }),
         el("td", { text: fac ? fac.name : "" }),
-        el("td", { text: u.manager || "" })
+        el("td", { text: u.domain || "No" })
       ]));
     });
 
@@ -641,10 +622,17 @@
       facilityOptions.push(el("option", { value: f.id, text: f.name, selected: facilityFilter === f.id ? "selected" : null }));
     });
 
-    return el("div", {}, [
-      el("div", { className: "accounts-heading", text: "Accounts" }),
+    function openSelected() {
+      if (!state.selectedUserId) {
+        alert("Select a user first.");
+        return;
+      }
+      navigate("users", state.selectedUserId);
+    }
+
+    return el("div", { className: "accounts-page" }, [
       el("div", { className: "toolbar" }, [
-        el("span", { text: "Filter by:" }),
+        el("label", { text: "Facility " }),
         el("select", {
           id: "filter-facility",
           onChange: function (ev) {
@@ -656,7 +644,7 @@
         el("input", {
           type: "search",
           id: "filter-search",
-          placeholder: "Search",
+          placeholder: "Search list",
           value: search,
           onInput: function (ev) {
             state.userListSearch = ev.target.value;
@@ -667,7 +655,7 @@
         el("button", {
           className: "btn",
           type: "button",
-          text: "Clear Filters",
+          text: "Filter options",
           onClick: function () {
             state.userListSearch = "";
             state.userListFacility = "";
@@ -678,7 +666,7 @@
         el("button", {
           className: "btn",
           type: "button",
-          text: "Create New...",
+          text: "Add User",
           onClick: function () {
             state.userDraft = emptyUserDraft();
             navigate("users", "new");
@@ -690,13 +678,15 @@
           el("thead", {}, [
             el("tr", {}, [
               el("th", { text: "" }),
-              el("th", { text: "Identity" }),
+              el("th", { text: "User ID" }),
+              el("th", { text: "Last Name" }),
+              el("th", { text: "First Name" }),
               el("th", { text: "Job Title" }),
               el("th", { text: "Employee" }),
               el("th", { text: "Location" }),
-              el("th", { text: "StartDate" }),
+              el("th", { text: "Start Date" }),
               el("th", { text: "Facility" }),
-              el("th", { text: "Manager" })
+              el("th", { text: "Domain" })
             ])
           ]),
           tbody
@@ -718,10 +708,18 @@
         })
       ]),
       el("div", { className: "users-footer-actions" }, [
-        el("button", { className: "btn", type: "button", text: "Save" }),
-        el("button", { className: "btn", type: "button", text: "Cancel" }),
-        el("button", { className: "btn", type: "button", text: "Assign Roles" }),
-        el("button", { className: "btn", type: "button", text: "Add Role" })
+        el("button", { className: "btn", type: "button", text: "View Details", onClick: openSelected }),
+        el("button", { className: "btn", type: "button", text: "Edit User", onClick: openSelected }),
+        el("button", { className: "btn", type: "button", text: "Assign Roles", onClick: openSelected }),
+        el("button", {
+          className: "btn",
+          type: "button",
+          text: "Add User",
+          onClick: function () {
+            state.userDraft = emptyUserDraft();
+            navigate("users", "new");
+          }
+        })
       ])
     ]);
   }
@@ -803,75 +801,71 @@
         ])
       ]),
       el("div", { className: "form-section" }, [
-        el("h3", { text: "Select Roles" }),
-        el("div", { className: "role-select-columns" }, [
-          el("div", { className: "role-select-col" }, state.db.roles.slice(0, Math.ceil(state.db.roles.length / 2)).map(function (r) {
-            var checked = draft.extraRoleIds.indexOf(r.id) >= 0 || draft.roleId === r.id;
-            return el("label", {}, [
-              el("input", {
-                type: "checkbox",
-                checked: checked,
-                onChange: function (ev) {
-                  if (r.id === draft.roleId) return;
-                  if (ev.target.checked) {
-                    if (draft.extraRoleIds.indexOf(r.id) < 0) draft.extraRoleIds.push(r.id);
-                  } else {
-                    draft.extraRoleIds = draft.extraRoleIds.filter(function (x) { return x !== r.id; });
-                  }
-                }
-              }),
-              " " + r.name
-            ]);
-          })),
-          el("div", { className: "role-select-col" }, state.db.roles.slice(Math.ceil(state.db.roles.length / 2)).map(function (r) {
-            var checked = draft.extraRoleIds.indexOf(r.id) >= 0 || draft.roleId === r.id;
-            return el("label", {}, [
-              el("input", {
-                type: "checkbox",
-                checked: checked,
-                onChange: function (ev) {
-                  if (r.id === draft.roleId) return;
-                  if (ev.target.checked) {
-                    if (draft.extraRoleIds.indexOf(r.id) < 0) draft.extraRoleIds.push(r.id);
-                  } else {
-                    draft.extraRoleIds = draft.extraRoleIds.filter(function (x) { return x !== r.id; });
-                  }
-                }
-              }),
-              " " + r.name
-            ]);
-          }))
-        ])
-      ]),
-      el("div", { className: "form-section" }, [
         el("h3", { text: "Access" }),
-        fieldGrid([
-          ["Select Facility", el("select", {
+        el("div", { className: "facility-row" }, [
+          el("label", { text: "Select Facility:" }),
+          el("select", {
             id: "field-facility",
-            onChange: function (e) { draft.facilityId = e.target.value; }
-          }, facOptions)]
+            onChange: function (e) {
+              draft.facilityId = e.target.value;
+              render();
+            }
+          }, [el("option", { value: "", text: "Select a facility" })].concat(facOptions))
         ]),
-        el("div", { className: "access-areas-block" }, [
-          el("strong", { text: "Assigned Areas" }),
-          el("div", { className: "areas-toolbar" }, [
-            el("a", {
-              text: "Select All",
-              onClick: function (ev) {
+        el("div", { className: "split-access" }, [
+          el("div", { className: "split-col" }, [
+            el("div", { className: "split-title", text: "Assign Roles:" }),
+            el("div", { className: "areas-toolbar" }, [
+              el("a", { text: "Select All", onClick: function (ev) {
+                ev.preventDefault();
+                draft.extraRoleIds = state.db.roles.map(function (r) { return r.id; });
+                render();
+              } }),
+              el("a", { text: "Select None", onClick: function (ev) {
+                ev.preventDefault();
+                draft.extraRoleIds = [];
+                render();
+              } })
+            ]),
+            el("div", { className: "areas-panel", id: "assign-roles-panel" }, state.db.roles.map(function (r) {
+              var checked = draft.roleId === r.id || draft.extraRoleIds.indexOf(r.id) >= 0;
+              return el("label", {}, [
+                el("input", {
+                  type: "checkbox",
+                  checked: checked,
+                  onChange: function (ev) {
+                    if (ev.target.checked) {
+                      if (draft.extraRoleIds.indexOf(r.id) < 0) draft.extraRoleIds.push(r.id);
+                      if (!draft.roleId) draft.roleId = r.id;
+                    } else {
+                      draft.extraRoleIds = draft.extraRoleIds.filter(function (x) { return x !== r.id; });
+                      if (draft.roleId === r.id) draft.roleId = draft.extraRoleIds[0] || "";
+                    }
+                    render();
+                  }
+                }),
+                " " + r.name
+              ]);
+            }))
+          ]),
+          el("div", { className: "split-col" }, [
+            el("div", { className: "split-title", text: "Assign Areas:" }),
+            el("div", { className: "areas-toolbar" }, [
+              el("a", { text: "Select All", onClick: function (ev) {
                 ev.preventDefault();
                 draft.assignedAreaIds = allowed.slice();
                 render();
-              }
-            }),
-            el("a", {
-              text: "Select None",
-              onClick: function (ev) {
+              } }),
+              el("a", { text: "Select None", onClick: function (ev) {
                 ev.preventDefault();
                 draft.assignedAreaIds = [];
                 render();
-              }
-            })
-          ]),
-          el("div", { className: "areas-panel", id: "assigned-areas-panel" }, areaLabels)
+              } })
+            ]),
+            el("div", { className: "areas-panel", id: "assigned-areas-panel" }, areaLabels.length ? areaLabels : [
+              el("p", { className: "areas-empty", text: "Select a User Type to see areas for that role." })
+            ])
+          ])
         ])
       ]),
       el("div", { className: "form-actions" }, [
@@ -1077,14 +1071,17 @@
     var crumb = "Home";
     var body;
 
+    var home = false;
     if (state.route.name === "home" || state.route.name === "actions") {
-      title = "Home";
-      crumb = "Home";
+      home = true;
+      title = "";
+      crumb = "";
       body = renderHome();
     } else if (state.route.name === "users") {
-      crumb = "Home > User Management";
+      crumb = "Home > Users > User Accounts";
       if (state.route.id === "new") {
         title = "Add User";
+        crumb = "Settings > Users > User Accounts > Add User";
         body = renderUserForm(emptyUserDraft());
       } else if (state.route.id) {
         var u = state.db.users.find(function (x) { return x.id === state.route.id; });
@@ -1093,16 +1090,16 @@
           title = "Users";
         } else {
           title = displayName(u);
-          crumb += " > Edit User";
+          crumb = "Settings > Users > User Accounts > Edit User";
           if (!state.userDraft || state.userDraft.id !== u.id) state.userDraft = JSON.parse(JSON.stringify(u));
           body = renderUserForm(u);
         }
       } else {
-        title = "Accounts";
+        title = "User Accounts";
         body = renderUsersList();
       }
     } else if (state.route.name === "roles") {
-      crumb = "Home > Role Management";
+      crumb = "Settings > Users > User Roles";
       if (state.route.id === "new") {
         title = "Add Role";
         state.roleDraft = state.roleDraft || emptyRoleDraft();
@@ -1115,30 +1112,30 @@
           body = renderRoleForm(r);
         }
       } else {
-        title = "Roles";
+        title = "User Roles";
         body = renderRolesList();
       }
     } else if (STUB_ROUTES[state.route.name]) {
       title = STUB_ROUTES[state.route.name];
       crumb = "Home > " + title;
-      body = renderFixtureHub(title);
+      body = el("div", { className: "welcome-panel" }, [
+        el("p", { text: title + " is available from the top menu. User accounts and roles are under Actions or Settings." })
+      ]);
     } else {
       title = "Not found";
-      body = el("div", { className: "welcome-panel" }, [
-        el("p", { text: "That page is not available." }),
-        el("div", { className: "fixture-launchpad" }, [
-          launchButton("home", "Return to Home"),
-          launchButton("users", "Open Users")
-        ])
+      crumb = "Home";
+      body = el("p", { text: "That page is not available." });
+    }
+
+    var sub = null;
+    if (!home) {
+      sub = el("div", { className: "subhead" }, [
+        el("div", { className: "breadcrumb", text: crumb }),
+        el("div", { className: "page-heading", text: title })
       ]);
     }
 
-    var sub = el("div", { className: "subhead" }, [
-      el("div", { className: "breadcrumb", text: crumb }),
-      el("div", {}, [el("strong", { text: title })])
-    ]);
-
-    wrapMain(shell, sub, body);
+    wrapMain(shell, sub, body, home);
     root.appendChild(shell);
 
     if (state.toast) {
