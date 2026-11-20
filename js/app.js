@@ -6,7 +6,9 @@
   var FIXTURE_KEY = "dw3-anonymous-v4";
   var SEED_USER_COUNT = 2185;
   var USER_PAGE_SIZE = 25;
-  var PRODUCT_TITLE = "BD Pyxis\u2122 Enterprise Server";
+  var PRODUCT_TITLE = "Disconnected";
+  var DEMO_USERNAME = "admin";
+  var DEMO_PASSWORD = "admin123";
 
   var ONLINE_RAIL = [
     { initials: "AA", label: "Admin..." },
@@ -290,10 +292,22 @@
     }, 2800);
   }
 
+  var STUB_ROUTES = {
+    settings: "Settings",
+    preferences: "Preferences",
+    medications: "Medications",
+    medinventory: "Med Inventory",
+    reports: "Audit Reports",
+    operations: "Operations"
+  };
+
   function parseHash() {
-    var hash = (location.hash || "#/login").slice(2);
-    var parts = hash.split("/");
-    var name = parts[0] || "login";
+    var hash = location.hash;
+    if (!hash || hash === "#") {
+      return { name: state.session ? "home" : "login", id: null };
+    }
+    var parts = hash.slice(2).split("/");
+    var name = parts[0] || (state.session ? "home" : "login");
     var id = parts[1] || null;
     return { name: name, id: id };
   }
@@ -378,11 +392,11 @@
   function renderLogin(root) {
     var err = "";
     root.appendChild(el("div", { id: "login-screen" }, [
-      el("div", { className: "login-brand" }, [
-        el("span", { className: "hex" }),
-        el("span", { text: PRODUCT_TITLE })
-      ]),
       el("div", { className: "login-card" }, [
+        el("div", { className: "login-brand" }, [
+          el("span", { className: "hex" }),
+          el("span", { text: PRODUCT_TITLE })
+        ]),
         el("div", { className: "login-error", id: "login-error", hidden: !err }),
         el("label", {}, [
           "Username",
@@ -405,6 +419,12 @@
               box.textContent = "Enter username and password.";
               return;
             }
+            if (u !== DEMO_USERNAME || p !== DEMO_PASSWORD) {
+              var bad = document.getElementById("login-error");
+              bad.removeAttribute("hidden");
+              bad.textContent = "Invalid username or password.";
+              return;
+            }
             state.session = { username: u, display: u };
             saveSession(state.session);
             navigate("home");
@@ -421,20 +441,21 @@
         el("div", { className: "brand", text: PRODUCT_TITLE }),
         el("nav", {}, [
           linkNav("home", "Home", active),
-          el("a", { href: "#", text: "Medications" }),
-          el("a", { href: "#", text: "Med Inventory" }),
-          el("a", { href: "#", text: "Reports" }),
+          linkNav("preferences", "Preferences", active),
+          linkNav("reports", "Audit Reports", active),
           linkNav("actions", "Actions", active),
-          el("a", { href: "#", text: "Settings" }),
-          el("a", { href: "#", text: "Operations" }),
           linkNav("users", "Users", active),
-          linkNav("roles", "Roles", active)
+          linkNav("roles", "Roles", active),
+          linkNav("settings", "Settings", active),
+          linkNav("medications", "Medications", active),
+          linkNav("medinventory", "Med Inventory", active),
+          linkNav("operations", "Operations", active)
         ]),
         el("div", { className: "session" }, [
           document.createTextNode("Mountain Standard Time | "),
-          el("span", { text: "ControlCenter... | " + (sess.display || sess.username || "User") + " | Pyxis | " }),
+          el("span", { text: "ControlCenter... | " + (sess.display || sess.username || "User") + " | " }),
           el("a", {
-            href: "#",
+            href: "#/login",
             text: "Sign Out",
             onClick: function (ev) {
               ev.preventDefault();
@@ -454,10 +475,38 @@
       href: "#/" + name,
       className: active === name ? "active" : "",
       text: label,
-      onClick: function () {
+      onClick: function (ev) {
+        ev.preventDefault();
         state.actionsOpen = false;
+        navigate(name);
       }
     });
+  }
+
+  function launchButton(route, label, id) {
+    return el("button", {
+      className: "btn launch-btn",
+      id: id || undefined,
+      type: "button",
+      onClick: function () { navigate(route); }
+    }, [label]);
+  }
+
+  function renderFixtureHub(sectionTitle) {
+    var count = (state.db.users || []).length;
+    return el("div", {}, [
+      el("div", { className: "welcome-panel" }, [
+        el("h2", { text: sectionTitle }),
+        el("p", {
+          text: "This module is not fully simulated in the disconnected fixture. Use the options below to manage accounts and roles."
+        })
+      ]),
+      el("div", { className: "fixture-launchpad" }, [
+        launchButton("users", "Users — " + count + " accounts", "hub-users"),
+        launchButton("roles", "Roles — area metadata per User Type", "hub-roles"),
+        launchButton("home", "Home — Actions menu (Create User / Role)", "hub-actions")
+      ])
+    ]);
   }
 
   function teamRail() {
@@ -490,13 +539,19 @@
       el("div", { className: "welcome-panel" }, [
         el("h2", { text: "Welcome to " + PRODUCT_TITLE + " where you can access the following features to:" }),
         el("ul", {}, [
-          el("li", { text: "WebAccess — Sign on and work with application features." }),
-          el("li", { text: "Audit — Track user and medication-related events." }),
-          el("li", { text: "Active — Monitor active user sessions." }),
-          el("li", { text: "Settings — Configure application options." }),
-          el("li", { text: "Database — Maintain users, roles, and area assignments." })
+          el("li", { text: "Workforce — User and account management." }),
+          el("li", { text: "Access — Facility and assigned-area controls." }),
+          el("li", { text: "Actions — Create and update records." }),
+          el("li", { text: "Compliance — Audit-oriented views (simulated)." }),
+          el("li", { text: "Governance — Roles and entitlements." }),
+          el("li", { text: "Dashboard — Summary landing (this page)." })
         ]),
-        el("div", { className: "welcome-hint", text: "Send an action from the menu below to proceed." })
+        el("div", { className: "welcome-hint", text: "Send an action item from the menu below to proceed." })
+      ]),
+      el("div", { className: "fixture-launchpad home-launchpad" }, [
+        launchButton("users", "Open Users (Accounts)"),
+        launchButton("roles", "Open Roles"),
+        launchButton("settings", "Open Settings")
       ]),
       el("div", { className: "actions-bar" }, [
         el("button", {
@@ -1017,7 +1072,7 @@
       return;
     }
 
-    var shell = shellHeader(state.route.name === "actions" ? "home" : state.route.name);
+    var shell = shellHeader(state.route.name);
     var title = "";
     var crumb = "Home";
     var body;
@@ -1063,9 +1118,19 @@
         title = "Roles";
         body = renderRolesList();
       }
+    } else if (STUB_ROUTES[state.route.name]) {
+      title = STUB_ROUTES[state.route.name];
+      crumb = "Home > " + title;
+      body = renderFixtureHub(title);
     } else {
-      title = state.route.name;
-      body = el("p", { text: "Page not found." });
+      title = "Not found";
+      body = el("div", { className: "welcome-panel" }, [
+        el("p", { text: "That page is not available." }),
+        el("div", { className: "fixture-launchpad" }, [
+          launchButton("home", "Return to Home"),
+          launchButton("users", "Open Users")
+        ])
+      ]);
     }
 
     var sub = el("div", { className: "subhead" }, [
@@ -1091,6 +1156,9 @@
     }
 
     state.session = loadSession();
+    if (state.session && (!location.hash || location.hash === "#")) {
+      navigate("home");
+    }
     window.addEventListener("hashchange", render);
     render();
   }

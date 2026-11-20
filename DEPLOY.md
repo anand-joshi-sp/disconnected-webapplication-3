@@ -20,11 +20,17 @@ npm install
 npm start
 ```
 
-Open `http://localhost:3000`. Any username/password signs in (demo fixture).
+Open `http://localhost:3000`.
+
+**Sign-in credentials (demo fixture):**
+
+| Username | Password |
+|----------|----------|
+| `admin`  | `admin123` |
 
 ## Data model
 
-- **`areas`**: master catalog of assignable areas (Pyxis-style labels).
+- **`areas`**: master catalog of assignable areas.
 - **`roles`**: each role has `areaIds` — metadata defining which areas users with that **User Type** may select.
 - **`users`**: saved with `roleId`, `facilityId`, and `assignedAreaIds` (must be subset of the role’s areas).
 - **`/api/db`**: GET returns JSON; PUT replaces the full database (auto-save on Save).

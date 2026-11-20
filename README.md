@@ -1,6 +1,6 @@
 # disconnected webapplication 3
 
-BD Pyxis™ Enterprise Server–style disconnected web fixture for SailPoint connector demos.
+**Disconnected** web fixture for SailPoint connector demos (enterprise-style UI).
 
 - **2,185** seeded accounts (matches discovery UI pagination: `1 - 25 of 2185`).
 - Role metadata: each **User Type** (role) defines which **areas** may be assigned.
