@@ -408,17 +408,19 @@
       suffix: "",
       initials: "",
       jobTitle: "",
-      roleId: state.db.roles[0] ? state.db.roles[0].id : "",
+      roleId: "",
       userScanCode: "",
       email: "",
       accountExpiration: "Never",
       domain: "No",
-      facilityId: state.db.facilities[0] ? state.db.facilities[0].id : "",
+      facilityId: "",
       assignedAreaIds: [],
       employee: "Yes",
       location: "",
       startDate: "",
       manager: "",
+      password: "",
+      confirmPassword: "",
       extraRoleIds: []
     };
   }
@@ -806,12 +808,10 @@
     }
 
     var facilityRoles = rolesForFacility(draft.facilityId);
-    var roleOptions = facilityRoles.map(function (r) {
+    var roleOptions = [el("option", { value: "", text: draft.facilityId ? "Select a user type" : "Select a facility first" })];
+    roleOptions = roleOptions.concat(facilityRoles.map(function (r) {
       return el("option", { value: r.id, text: r.name, selected: draft.roleId === r.id ? "selected" : null });
-    });
-    if (!roleOptions.length) {
-      roleOptions = [el("option", { value: "", text: "Select a facility first" })];
-    }
+    }));
     var facOptions = state.db.facilities.map(function (f) {
       return el("option", { value: f.id, text: f.name, selected: draft.facilityId === f.id ? "selected" : null });
     });
@@ -845,12 +845,13 @@
           chk("Unrestricted User Management", draft.unrestrictedUserMgmt, function (v) { setField("unrestrictedUserMgmt", v); }),
           chk("Exempt from Bio ID", draft.exemptBioId, function (v) { setField("exemptBioId", v); })
         ]),
-        fieldGrid([
+        fieldGridThree([
           ["First Name", el("input", { id: "field-first-name", value: draft.firstName, onInput: function (e) { draft.firstName = e.target.value; } })],
           ["Middle Name", el("input", { value: draft.middleName, onInput: function (e) { draft.middleName = e.target.value; } })],
           ["Last Name", el("input", { value: draft.lastName, onInput: function (e) { draft.lastName = e.target.value; } })],
           ["Suffix", el("input", { value: draft.suffix, onInput: function (e) { draft.suffix = e.target.value; } })],
           ["Initials", el("input", { value: draft.initials, onInput: function (e) { draft.initials = e.target.value; } })],
+          ["", el("span", {})],
           ["Job Title", el("input", { value: draft.jobTitle, onInput: function (e) { draft.jobTitle = e.target.value; } })],
           ["User Type", el("select", {
             id: "field-user-type",
@@ -861,11 +862,13 @@
       ]),
       el("div", { className: "form-section" }, [
         el("h3", { text: "Account details" }),
-        fieldGrid([
+        fieldGridThree([
           ["User ID", el("input", { id: "field-user-id", value: draft.userId, onInput: function (e) { draft.userId = e.target.value; } })],
           ["Email", el("input", { value: draft.email, onInput: function (e) { draft.email = e.target.value; } })],
+          ["Password", el("input", { id: "field-password", type: "password", value: draft.password || "", onInput: function (e) { draft.password = e.target.value; } })],
           ["Account Expiration", el("input", { value: draft.accountExpiration, onInput: function (e) { draft.accountExpiration = e.target.value; } })],
-          ["Domain", el("input", { value: draft.domain, onInput: function (e) { draft.domain = e.target.value; } })]
+          ["Domain", el("input", { value: draft.domain, onInput: function (e) { draft.domain = e.target.value; } })],
+          ["Confirm Password", el("input", { id: "field-confirm-password", type: "password", value: draft.confirmPassword || "", onInput: function (e) { draft.confirmPassword = e.target.value; } })]
         ])
       ]),
       el("div", { className: "form-section" }, [
@@ -884,7 +887,7 @@
             }
           }, [el("option", { value: "", text: "Select a facility" })].concat(facOptions))
         ]),
-        el("div", { className: "split-access" }, [
+        draft.facilityId ? el("div", { className: "split-access" }, [
           el("div", { className: "split-col" }, [
             el("div", { className: "split-title", text: "Assign Roles:" }),
             el("div", { className: "areas-toolbar" }, [
@@ -939,7 +942,7 @@
               el("p", { className: "areas-empty", text: "Select a role to see areas for that facility." })
             ])
           ])
-        ])
+        ]) : null
       ]),
       el("div", { className: "form-actions" }, [
         el("button", {
@@ -959,6 +962,14 @@
           onClick: function () {
             if (!draft.userId || !draft.firstName || !draft.lastName) {
               alert("User ID, first name, and last name are required.");
+              return;
+            }
+            if (!draft.facilityId) {
+              alert("Select a facility.");
+              return;
+            }
+            if ((draft.password || "") !== (draft.confirmPassword || "")) {
+              alert("Password and confirm password must match.");
               return;
             }
             var copy = JSON.parse(JSON.stringify(draft));
@@ -992,6 +1003,15 @@
 
   function fieldGrid(rows) {
     var grid = el("div", { className: "form-grid" });
+    rows.forEach(function (row) {
+      grid.appendChild(el("span", { text: row[0] }));
+      grid.appendChild(row[1]);
+    });
+    return grid;
+  }
+
+  function fieldGridThree(rows) {
+    var grid = el("div", { className: "form-grid-three" });
     rows.forEach(function (row) {
       grid.appendChild(el("span", { text: row[0] }));
       grid.appendChild(row[1]);

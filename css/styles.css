@@ -366,6 +366,21 @@ table.data a:hover { text-decoration: underline; }
   width: 100%;
   max-width: 320px;
 }
+.form-grid-three {
+  display: grid;
+  grid-template-columns: 92px minmax(120px, 1fr) 92px minmax(120px, 1fr) 92px minmax(120px, 1fr);
+  gap: 8px 10px;
+  align-items: center;
+  font-size: 12px;
+}
+.form-grid-three input,
+.form-grid-three select {
+  height: 26px;
+  border: 1px solid #999;
+  padding: 2px 6px;
+  width: 100%;
+  min-width: 0;
+}
 .areas-panel {
   border: 1px solid #bbb;
   background: #fafafa;
@@ -425,6 +440,12 @@ table.data a:hover { text-decoration: underline; }
 .areas-empty { color: #666; font-size: 12px; margin: 4px 0; }
 table.data tr.selected { background: #d6e6f5; }
 .list-pager { text-align: center; }
+
+@media (max-width: 850px) {
+  .form-grid-three {
+    grid-template-columns: 105px minmax(130px, 1fr) 105px minmax(130px, 1fr);
+  }
+}
 
 .error-banner {
   background: #fef2f2;
