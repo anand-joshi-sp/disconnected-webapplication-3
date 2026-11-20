@@ -81,8 +81,9 @@
     var pharmacy = ["pharm-central", "pharm-iv", "east-clinic", "north-clinic"];
     var tech = ["imaging-proc", "surg-trum", "ortho", "burn-unit"];
     var supervisor = clinical.concat(["west-ed"]);
+    var byFacility = defaultRoleFacilities();
     function role(id, name, areaIds) {
-      return { id: id, name: name, areaIds: areaIds };
+      return { id: id, name: name, areaIds: areaIds, facilityIds: (byFacility[id] || []).slice() };
     }
     return [
       role("area-tech", "Area Tech", tech),
@@ -103,6 +104,28 @@
       role("pharm-tech", "Pharmacy Tech", pharmacy),
       role("system-admin", "System Admin", all)
     ];
+  }
+
+  function defaultRoleFacilities() {
+    return {
+      "area-tech": ["fac-west", "fac-medical"],
+      "area-supv": ["fac-bh-mesa", "fac-medical"],
+      "area-tech-srna": ["fac-west"],
+      "house-supv": ["fac-bh-mesa", "fac-west"],
+      "ident-access": ["fac-medical"],
+      "instructor": ["fac-ch-centers", "fac-medical"],
+      "logistics": ["fac-west", "fac-ch-centers"],
+      "ma": ["fac-bh-mesa", "fac-ch-centers"],
+      "pharmacist": ["fac-ch-centers", "fac-medical"],
+      "resp-ther": ["fac-bh-mesa", "fac-medical"],
+      "rn-supv": ["fac-bh-mesa", "fac-medical"],
+      "rnpa": ["fac-bh-mesa"],
+      "rn": ["fac-bh-mesa", "fac-ch-centers", "fac-medical"],
+      "tech": ["fac-west"],
+      "tech-specialty": ["fac-west", "fac-medical"],
+      "pharm-tech": ["fac-ch-centers"],
+      "system-admin": ["fac-bh-mesa", "fac-ch-centers", "fac-west", "fac-medical"]
+    };
   }
 
   function makeUser(row) {
@@ -141,7 +164,6 @@
   function defaultUsers() {
     var facilities = defaultFacilities();
     var roles = defaultRoles();
-    var roleIds = roles.map(function (r) { return r.id; });
     var jobTitles = [
       "Analyst", "Medical Coder", "RN", "Pharmacist", "Developer", "Senior Manager",
       "Non-Employee", "Clinical Resource Leader", "Retired", "Technician"
@@ -179,7 +201,11 @@
       var lastName = lastNames[Math.floor(i / firstNames.length) % lastNames.length];
       var userId = firstName.toLowerCase().charAt(0) + lastName.toLowerCase() + i;
       var fac = facilities[i % facilities.length];
-      var roleId = roleIds[i % roleIds.length];
+      var facRoles = roles.filter(function (r) {
+        return (r.facilityIds || []).indexOf(fac.id) >= 0;
+      });
+      var picked = facRoles[i % facRoles.length] || roles[0];
+      var roleId = picked.id;
       var month = (i % 12) + 1;
       var day = (i % 28) + 1;
       var year = 2010 + (i % 14);
@@ -196,7 +222,7 @@
         startDate: pad2(month) + "/" + pad2(day) + "/" + year,
         employee: i % 17 === 0 ? "No" : "Yes",
         location: i % 6 === 0 ? "Contractor Site" : "Regional Health System",
-        assignedAreaIds: i % 3 === 0 ? ["7a-crit", "rmc-ed"] : i % 3 === 1 ? ["pharm-central"] : ["msd-2-3"],
+        assignedAreaIds: (picked.areaIds || []).slice(0, 3),
         manager: lastNames[(i + 3) % lastNames.length] + ", " + firstNames[(i + 5) % firstNames.length]
       }));
     }
@@ -324,6 +350,43 @@
   function areaLabel(areaId) {
     var a = state.db.areas.find(function (x) { return x.id === areaId; });
     return a ? a.label : areaId;
+  }
+
+  function rolesForFacility(facilityId) {
+    if (!facilityId) return [];
+    return (state.db.roles || []).filter(function (r) {
+      return (r.facilityIds || []).indexOf(facilityId) >= 0;
+    });
+  }
+
+  function areasForSelectedRoles(draft) {
+    var seen = {};
+    var selected = (draft.extraRoleIds || []).slice();
+    if (draft.roleId && selected.indexOf(draft.roleId) < 0) selected.push(draft.roleId);
+    selected.forEach(function (rid) {
+      var role = roleById(rid);
+      if (!role) return;
+      (role.areaIds || []).forEach(function (id) { seen[id] = true; });
+    });
+    return Object.keys(seen);
+  }
+
+  function constrainDraftToFacility(draft) {
+    var allowedRoles = rolesForFacility(draft.facilityId);
+    var allowedIds = allowedRoles.map(function (r) { return r.id; });
+    draft.extraRoleIds = (draft.extraRoleIds || []).filter(function (id) {
+      return allowedIds.indexOf(id) >= 0;
+    });
+    if (!draft.roleId || allowedIds.indexOf(draft.roleId) < 0) {
+      draft.roleId = draft.extraRoleIds[0] || "";
+    }
+    if (draft.roleId && draft.extraRoleIds.indexOf(draft.roleId) < 0) {
+      draft.extraRoleIds.push(draft.roleId);
+    }
+    var areaAllowed = areasForSelectedRoles(draft);
+    draft.assignedAreaIds = (draft.assignedAreaIds || []).filter(function (id) {
+      return areaAllowed.indexOf(id) >= 0;
+    });
   }
 
   function allowedAreasForRole(roleId) {
@@ -727,7 +790,8 @@
   function renderUserForm(user) {
     var isNew = !user.id;
     var draft = state.userDraft || user;
-  if (!draft.extraRoleIds) draft.extraRoleIds = [];
+    if (!draft.extraRoleIds) draft.extraRoleIds = [];
+    constrainDraftToFacility(draft);
     state.userDraft = draft;
 
     function setField(key, value) {
@@ -741,14 +805,18 @@
       render();
     }
 
-    var roleOptions = state.db.roles.map(function (r) {
+    var facilityRoles = rolesForFacility(draft.facilityId);
+    var roleOptions = facilityRoles.map(function (r) {
       return el("option", { value: r.id, text: r.name, selected: draft.roleId === r.id ? "selected" : null });
     });
+    if (!roleOptions.length) {
+      roleOptions = [el("option", { value: "", text: "Select a facility first" })];
+    }
     var facOptions = state.db.facilities.map(function (f) {
       return el("option", { value: f.id, text: f.name, selected: draft.facilityId === f.id ? "selected" : null });
     });
 
-    var allowed = allowedAreasForRole(draft.roleId);
+    var allowed = areasForSelectedRoles(draft);
     var areaLabels = [];
     allowed.forEach(function (aid) {
       var checked = draft.assignedAreaIds.indexOf(aid) >= 0;
@@ -808,6 +876,10 @@
             id: "field-facility",
             onChange: function (e) {
               draft.facilityId = e.target.value;
+              draft.extraRoleIds = [];
+              draft.roleId = "";
+              draft.assignedAreaIds = [];
+              constrainDraftToFacility(draft);
               render();
             }
           }, [el("option", { value: "", text: "Select a facility" })].concat(facOptions))
@@ -818,7 +890,8 @@
             el("div", { className: "areas-toolbar" }, [
               el("a", { text: "Select All", onClick: function (ev) {
                 ev.preventDefault();
-                draft.extraRoleIds = state.db.roles.map(function (r) { return r.id; });
+                draft.extraRoleIds = facilityRoles.map(function (r) { return r.id; });
+                if (!draft.roleId && facilityRoles[0]) draft.roleId = facilityRoles[0].id;
                 render();
               } }),
               el("a", { text: "Select None", onClick: function (ev) {
@@ -827,7 +900,7 @@
                 render();
               } })
             ]),
-            el("div", { className: "areas-panel", id: "assign-roles-panel" }, state.db.roles.map(function (r) {
+            el("div", { className: "areas-panel", id: "assign-roles-panel" }, facilityRoles.length ? facilityRoles.map(function (r) {
               var checked = draft.roleId === r.id || draft.extraRoleIds.indexOf(r.id) >= 0;
               return el("label", {}, [
                 el("input", {
@@ -846,7 +919,7 @@
                 }),
                 " " + r.name
               ]);
-            }))
+            }) : [el("p", { className: "areas-empty", text: "Select a facility to see roles for that facility." })])
           ]),
           el("div", { className: "split-col" }, [
             el("div", { className: "split-title", text: "Assign Areas:" }),
@@ -863,7 +936,7 @@
               } })
             ]),
             el("div", { className: "areas-panel", id: "assigned-areas-panel" }, areaLabels.length ? areaLabels : [
-              el("p", { className: "areas-empty", text: "Select a User Type to see areas for that role." })
+              el("p", { className: "areas-empty", text: "Select a role to see areas for that facility." })
             ])
           ])
         ])
@@ -1024,7 +1097,14 @@
               return;
             }
             var slug = draft.id || draft.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-            var copy = { id: slug, name: draft.name.trim(), areaIds: draft.areaIds.slice() };
+            var copy = {
+              id: slug,
+              name: draft.name.trim(),
+              areaIds: draft.areaIds.slice(),
+              facilityIds: (draft.facilityIds && draft.facilityIds.length)
+                ? draft.facilityIds.slice()
+                : state.db.facilities.map(function (f) { return f.id; })
+            };
             var exists = state.db.roles.findIndex(function (r) { return r.id === copy.id; });
             if (isNew && exists >= 0) {
               copy.id = slug + "-" + Math.random().toString(36).slice(2, 6);
@@ -1143,6 +1223,21 @@
     }
   }
 
+  function applyFacilityRoleMap(db) {
+    var map = defaultRoleFacilities();
+    var changed = false;
+    (db.roles || []).forEach(function (r) {
+      var ids = map[r.id];
+      if (!ids) return;
+      var current = (r.facilityIds || []).join(",");
+      if (current !== ids.join(",")) {
+        r.facilityIds = ids.slice();
+        changed = true;
+      }
+    });
+    return changed;
+  }
+
   function boot() {
     var loaded = loadServerDb();
     if (!loaded || dbNeedsReseed(loaded)) {
@@ -1150,6 +1245,7 @@
       saveDb(state.db);
     } else {
       state.db = loaded;
+      if (applyFacilityRoleMap(state.db)) saveDb(state.db);
     }
 
     state.session = loadSession();
