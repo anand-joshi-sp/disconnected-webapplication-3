@@ -2,7 +2,7 @@
 
 **Disconnected** web fixture for SailPoint connector demos (enterprise-style UI).
 
-- **2,758** seeded accounts (matches discovery UI pagination: `View 1 - 25 of 2,758`).
+- **2,258** seeded accounts (matches discovery UI pagination: `View 1 - 25 of 2,258`, 91 pages).
 - Role metadata: each **User Type** (role) defines which **areas** may be assigned.
 - Persistent users and roles via Node `/api/db` (`.data/db.json`).
 

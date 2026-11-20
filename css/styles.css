@@ -301,11 +301,24 @@ table.data tr:nth-child(even) { background: #f7fafc; }
 table.data a { color: var(--pyxis-link); text-decoration: none; }
 table.data a:hover { text-decoration: underline; }
 .list-pager {
-  margin-top: 8px;
+  min-height: 28px;
+  padding: 4px 6px;
   font-size: 12px;
   color: #444;
+  background: #f2f2f2;
+  border: 1px solid #d4d4d4;
+  border-top: 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
 }
-.list-pager .show-more { color: var(--pyxis-link); margin-left: 6px; }
+.pager-left { justify-self: start; white-space: nowrap; }
+.pager-view { justify-self: center; color: var(--pyxis-link); font-weight: 600; }
+.pager-size { justify-self: end; white-space: nowrap; }
+.pager-left input { width: 34px; height: 20px; text-align: center; }
+.pager-left button { min-width: 22px; height: 20px; padding: 0 3px; }
+.pager-size select { height: 22px; }
 .record-actions {
   display: flex;
   justify-content: flex-end;
@@ -439,7 +452,25 @@ table.data a:hover { text-decoration: underline; }
 .facility-row select { height: 26px; min-width: 240px; }
 .areas-empty { color: #666; font-size: 12px; margin: 4px 0; }
 table.data tr.selected { background: #d6e6f5; }
-.list-pager { text-align: center; }
+.success-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background: #e7f6e7;
+  border: 1px solid #71ad71;
+  color: #245b24;
+  font-weight: 600;
+}
+.success-banner button {
+  border: 0;
+  background: transparent;
+  color: #245b24;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
 
 @media (max-width: 850px) {
   .form-grid-three {

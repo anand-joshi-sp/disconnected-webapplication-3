@@ -1,10 +1,10 @@
 (function () {
   "use strict";
 
-  var LS_VERSION = "disconnected-webapplication-3-v5";
+  var LS_VERSION = "disconnected-webapplication-3-v6";
   var SESSION_KEY = "dw3-session";
-  var FIXTURE_KEY = "dw3-anonymous-v5";
-  var SEED_USER_COUNT = 2758;
+  var FIXTURE_KEY = "dw3-anonymous-v6";
+  var SEED_USER_COUNT = 2258;
   var USER_PAGE_SIZE = 25;
   var PRODUCT_TITLE = "Disconnected";
   var DEMO_USERNAME = "admin";
@@ -30,6 +30,7 @@
     toast: null,
     openMenu: null,
     selectedUserId: null,
+    successMessage: null,
     userDraft: null,
     roleDraft: null
   };
@@ -640,13 +641,16 @@
       return true;
     });
 
-    var visible = state.userListVisible || USER_PAGE_SIZE;
-    if (visible < USER_PAGE_SIZE) visible = USER_PAGE_SIZE;
-    state.userListVisible = visible;
-    var pageUsers = users.slice(0, visible);
-    var rangeFrom = users.length === 0 ? 0 : 1;
-    var rangeTo = Math.min(visible, users.length);
-    var canShowMore = visible < users.length;
+    var pageSize = state.userPageSize || USER_PAGE_SIZE;
+    var pageCount = Math.max(1, Math.ceil(users.length / pageSize));
+    var page = state.userListPage || 1;
+    if (page > pageCount) page = pageCount;
+    if (page < 1) page = 1;
+    state.userListPage = page;
+    var start = (page - 1) * pageSize;
+    var pageUsers = users.slice(start, start + pageSize);
+    var rangeFrom = users.length === 0 ? 0 : start + 1;
+    var rangeTo = Math.min(start + pageSize, users.length);
 
     var tbody = el("tbody", {});
     pageUsers.forEach(function (u) {
@@ -688,13 +692,25 @@
     }
 
     return el("div", { className: "accounts-page" }, [
+      state.successMessage ? el("div", { className: "success-banner", id: "user-success-message" }, [
+        document.createTextNode(state.successMessage),
+        el("button", {
+          type: "button",
+          text: "×",
+          title: "Dismiss",
+          onClick: function () {
+            state.successMessage = null;
+            render();
+          }
+        })
+      ]) : null,
       el("div", { className: "toolbar" }, [
         el("label", { text: "Facility:" }),
         el("select", {
           id: "filter-facility",
           onChange: function (ev) {
             state.userListFacility = ev.target.value;
-            state.userListVisible = USER_PAGE_SIZE;
+            state.userListPage = 1;
             render();
           }
         }, facilityOptions),
@@ -703,7 +719,7 @@
           id: "filter-assignment",
           onChange: function (ev) {
             state.userAssignmentFilter = ev.target.value;
-            state.userListVisible = USER_PAGE_SIZE;
+            state.userListPage = 1;
             render();
           }
         }, [
@@ -718,7 +734,7 @@
           value: search,
           onInput: function (ev) {
             state.userListSearch = ev.target.value;
-            state.userListVisible = USER_PAGE_SIZE;
+            state.userListPage = 1;
             render();
           }
         }),
@@ -730,7 +746,7 @@
             state.userListSearch = "";
             state.userListFacility = "";
             state.userAssignmentFilter = "assigned";
-            state.userListVisible = USER_PAGE_SIZE;
+            state.userListPage = 1;
             render();
           }
         })
@@ -754,19 +770,57 @@
         ])
       ]),
       el("div", { className: "list-pager" }, [
-        document.createTextNode("View " + rangeFrom + " - " + rangeTo + " of " + users.length + "  "),
-        el("a", {
-          href: "#",
-          className: "show-more",
-          text: canShowMore ? "Show more" : "",
-          onClick: function (ev) {
-            ev.preventDefault();
-            if (canShowMore) {
-              state.userListVisible = visible + USER_PAGE_SIZE;
+        el("div", { className: "pager-left" }, [
+          el("button", {
+            type: "button",
+            text: "|<",
+            disabled: page === 1,
+            onClick: function () { state.userListPage = 1; render(); }
+          }),
+          el("button", {
+            type: "button",
+            text: "<",
+            disabled: page === 1,
+            onClick: function () { state.userListPage = page - 1; render(); }
+          }),
+          document.createTextNode(" Page "),
+          el("input", {
+            type: "number",
+            min: "1",
+            max: String(pageCount),
+            value: String(page),
+            onChange: function (ev) {
+              state.userListPage = Math.max(1, Math.min(pageCount, Number(ev.target.value) || 1));
               render();
             }
-          }
-        })
+          }),
+          document.createTextNode(" of " + pageCount + " "),
+          el("button", {
+            type: "button",
+            text: ">",
+            disabled: page === pageCount,
+            onClick: function () { state.userListPage = page + 1; render(); }
+          }),
+          el("button", {
+            type: "button",
+            text: ">|",
+            disabled: page === pageCount,
+            onClick: function () { state.userListPage = pageCount; render(); }
+          })
+        ]),
+        el("div", { className: "pager-view", text: "View " + rangeFrom + " - " + rangeTo + " of " + users.length.toLocaleString() }),
+        el("label", { className: "pager-size" }, [
+          document.createTextNode("Records per Page "),
+          el("select", {
+            onChange: function (ev) {
+              state.userPageSize = Number(ev.target.value);
+              state.userListPage = 1;
+              render();
+            }
+          }, [25, 50, 100].map(function (size) {
+            return el("option", { value: String(size), text: String(size), selected: pageSize === size });
+          }))
+        ])
       ]),
       el("div", { className: "record-actions" }, [
         el("button", { className: "btn", type: "button", text: "Unlock" }),
@@ -982,8 +1036,8 @@
             }
             saveDb(state.db);
             state.userDraft = null;
-            showToast("User saved.");
-            navigate("users", copy.id);
+            state.successMessage = isNew ? "User added successfully." : "User updated successfully.";
+            navigate("users");
           }
         })
       ])
