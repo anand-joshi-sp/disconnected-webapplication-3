@@ -1,10 +1,10 @@
 (function () {
   "use strict";
 
-  var LS_VERSION = "disconnected-webapplication-3-v4";
+  var LS_VERSION = "disconnected-webapplication-3-v5";
   var SESSION_KEY = "dw3-session";
-  var FIXTURE_KEY = "dw3-anonymous-v4";
-  var SEED_USER_COUNT = 2185;
+  var FIXTURE_KEY = "dw3-anonymous-v5";
+  var SEED_USER_COUNT = 2758;
   var USER_PAGE_SIZE = 25;
   var PRODUCT_TITLE = "Disconnected";
   var DEMO_USERNAME = "admin";
@@ -628,10 +628,13 @@
   function renderUsersList() {
     var search = state.userListSearch || "";
     var facilityFilter = state.userListFacility || "";
+    var assignmentFilter = state.userAssignmentFilter || "assigned";
     var users = state.db.users.filter(function (u) {
       var name = displayName(u).toLowerCase();
       if (search && name.indexOf(search.toLowerCase()) < 0 && u.userId.toLowerCase().indexOf(search.toLowerCase()) < 0) return false;
       if (facilityFilter && u.facilityId !== facilityFilter) return false;
+      if (assignmentFilter === "assigned" && !u.roleId) return false;
+      if (assignmentFilter === "unassigned" && u.roleId) return false;
       return true;
     });
 
@@ -655,22 +658,21 @@
         el("td", {}, [
           el("a", {
             href: "#/users/" + encodeURIComponent(u.id),
-            text: u.userId,
+            text: u.lastName + ", " + u.firstName,
             onClick: function (ev) { ev.preventDefault(); navigate("users", u.id); }
           })
         ]),
-        el("td", { text: u.lastName || "" }),
-        el("td", { text: u.firstName || "" }),
+        el("td", { text: u.userId }),
         el("td", { text: u.jobTitle || "" }),
-        el("td", { text: u.employee || "Yes" }),
-        el("td", { text: u.location || "" }),
-        el("td", { text: u.startDate || "" }),
+        el("td", { text: u.accountExpiration || "Never" }),
+        el("td", { text: u.locked ? "Yes" : "" }),
+        el("td", { text: u.active ? "" : "Yes" }),
         el("td", { text: fac ? fac.name : "" }),
         el("td", { text: u.domain || "No" })
       ]));
     });
 
-    var facilityOptions = [el("option", { value: "", text: "All" })];
+    var facilityOptions = [el("option", { value: "", text: "My Facilities" })];
     state.db.facilities.forEach(function (f) {
       facilityOptions.push(el("option", { value: f.id, text: f.name, selected: facilityFilter === f.id ? "selected" : null }));
     });
@@ -685,7 +687,7 @@
 
     return el("div", { className: "accounts-page" }, [
       el("div", { className: "toolbar" }, [
-        el("label", { text: "Facility " }),
+        el("label", { text: "Facility:" }),
         el("select", {
           id: "filter-facility",
           onChange: function (ev) {
@@ -694,6 +696,19 @@
             render();
           }
         }, facilityOptions),
+        el("label", { text: "Users:" }),
+        el("select", {
+          id: "filter-assignment",
+          onChange: function (ev) {
+            state.userAssignmentFilter = ev.target.value;
+            state.userListVisible = USER_PAGE_SIZE;
+            render();
+          }
+        }, [
+          el("option", { value: "assigned", text: "Assigned Only", selected: assignmentFilter === "assigned" }),
+          el("option", { value: "all", text: "All Users", selected: assignmentFilter === "all" }),
+          el("option", { value: "unassigned", text: "Unassigned Only", selected: assignmentFilter === "unassigned" })
+        ]),
         el("input", {
           type: "search",
           id: "filter-search",
@@ -712,17 +727,9 @@
           onClick: function () {
             state.userListSearch = "";
             state.userListFacility = "";
+            state.userAssignmentFilter = "assigned";
             state.userListVisible = USER_PAGE_SIZE;
             render();
-          }
-        }),
-        el("button", {
-          className: "btn",
-          type: "button",
-          text: "Add User",
-          onClick: function () {
-            state.userDraft = emptyUserDraft();
-            navigate("users", "new");
           }
         })
       ]),
@@ -731,22 +738,21 @@
           el("thead", {}, [
             el("tr", {}, [
               el("th", { text: "" }),
+              el("th", { text: "Name" }),
               el("th", { text: "User ID" }),
-              el("th", { text: "Last Name" }),
-              el("th", { text: "First Name" }),
               el("th", { text: "Job Title" }),
-              el("th", { text: "Employee" }),
-              el("th", { text: "Location" }),
-              el("th", { text: "Start Date" }),
+              el("th", { text: "Expires" }),
+              el("th", { text: "Locked" }),
+              el("th", { text: "Inactive" }),
               el("th", { text: "Facility" }),
-              el("th", { text: "Domain" })
+              el("th", { text: "Domain Name" })
             ])
           ]),
           tbody
         ])
       ]),
       el("div", { className: "list-pager" }, [
-        document.createTextNode(rangeFrom + " - " + rangeTo + " of " + state.db.users.length + "  "),
+        document.createTextNode("View " + rangeFrom + " - " + rangeTo + " of " + users.length + "  "),
         el("a", {
           href: "#",
           className: "show-more",
@@ -760,9 +766,13 @@
           }
         })
       ]),
+      el("div", { className: "record-actions" }, [
+        el("button", { className: "btn", type: "button", text: "Unlock" }),
+        el("button", { className: "btn", type: "button", text: "Delete" })
+      ]),
       el("div", { className: "users-footer-actions" }, [
-        el("button", { className: "btn", type: "button", text: "View Details", onClick: openSelected }),
-        el("button", { className: "btn", type: "button", text: "Edit User", onClick: openSelected }),
+        el("button", { className: "btn", type: "button", text: "View Users", onClick: openSelected }),
+        el("button", { className: "btn", type: "button", text: "Edit Users", onClick: openSelected }),
         el("button", { className: "btn", type: "button", text: "Assign Roles", onClick: openSelected }),
         el("button", {
           className: "btn",

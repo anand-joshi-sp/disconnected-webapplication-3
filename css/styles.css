@@ -248,6 +248,15 @@ body {
   margin-bottom: 10px;
   font-size: 12px;
 }
+.accounts-page {
+  width: min(860px, 100%);
+  margin: 0 auto;
+}
+.accounts-page .toolbar {
+  gap: 7px;
+  margin-bottom: 7px;
+}
+.accounts-page .toolbar label { font-size: 11px; }
 .toolbar select, .toolbar input {
   height: 26px;
   border: 1px solid #999;
@@ -270,13 +279,13 @@ body {
 table.data {
   width: 100%;
   border-collapse: collapse;
-  min-width: 960px;
-  font-size: 12px;
+  min-width: 790px;
+  font-size: 11px;
 }
 table.data th {
   background: #dce8f4;
   text-align: left;
-  padding: 6px 8px;
+  padding: 4px 6px;
   border: 1px solid #b8c9d9;
   font-weight: 600;
   position: sticky;
@@ -284,7 +293,7 @@ table.data th {
   z-index: 1;
 }
 table.data td {
-  padding: 5px 8px;
+  padding: 3px 6px;
   border: 1px solid #e0e0e0;
   vertical-align: middle;
 }
@@ -297,6 +306,19 @@ table.data a:hover { text-decoration: underline; }
   color: #444;
 }
 .list-pager .show-more { color: var(--pyxis-link); margin-left: 6px; }
+.record-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+  padding: 4px 0;
+}
+.record-actions .btn {
+  padding: 3px 10px;
+  font-size: 11px;
+  border: 1px solid #888;
+  background: linear-gradient(#fff, #e6e6e6);
+  cursor: pointer;
+}
 
 .form-shell {
   background: #fff;
