@@ -1,0 +1,12 @@
+{
+  "name": "disconnected-webapplication-3",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BD Pyxis-style disconnected web fixture with role-to-area metadata",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
