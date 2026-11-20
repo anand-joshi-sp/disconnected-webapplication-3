@@ -476,9 +476,9 @@
               menuItem("Groups", function () { navigate("operations"); }),
               menuItem("Inventory", function () { navigate("medinventory"); }),
               menuItem("Reports", function () { navigate("reports"); }),
-              el("div", { className: "mi has-sub" }, [
+              el("div", { className: "mi has-sub open-sub" }, [
                 document.createTextNode("Users"),
-                el("div", { className: "nav-flyout" }, [
+                el("div", { className: "nav-flyout", id: "actions-users-flyout" }, [
                   menuItem("User Accounts", function () { navigate("users"); }, "menu-user-accounts"),
                   menuItem("Add User", function () {
                     state.userDraft = emptyUserDraft();
